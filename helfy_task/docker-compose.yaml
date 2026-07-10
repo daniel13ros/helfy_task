@@ -134,3 +134,27 @@ services:
       - "3000:3000"
     networks:
       - app_net
+
+  cdc-consumer:
+    build:
+      context: ./cdc-consumer
+      dockerfile: Dockerfile
+    container_name: cdc-consumer
+    restart: unless-stopped
+    depends_on:
+      connect:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      kafka_group_id: cdc-consumer-group
+      TOPIC_NAME: mydb.mytable
+      db_name: mydatabase
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
