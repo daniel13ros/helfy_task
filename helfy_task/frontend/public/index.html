@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 360px; margin: 80px auto; }
+  label { display: block; margin-top: 12px; font-size: 14px; }
+  input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  button { margin-top: 16px; width: 100%; padding: 10px; cursor: pointer; }
+  #result { margin-top: 16px; font-size: 14px; word-break: break-all; white-space: pre-wrap; }
+  .hidden { display: none !important; } 
+</style>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="login-form">
+    <div id="login-fields">
+      <label for="usernameOrEmail">Username or email</label>
+      <input id="usernameOrEmail" name="usernameOrEmail" type="text" autocomplete="username" />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+    </div>
+
+    <button type="submit" id="action-btn">Log in</button>
+  </form>
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const result = document.getElementById('result');
+    const actionBtn = document.getElementById('action-btn');
+    const loginFields = document.getElementById('login-fields');
+    const usernameInput = document.getElementById('usernameOrEmail');
+    const passwordInput = document.getElementById('password');
+
+    // Function to set the UI state for logged users
+    function setLoggedInState() {
+      loginFields.classList.add('hidden'); 
+      actionBtn.textContent = 'Log out';
+      usernameInput.removeAttribute('required');
+      passwordInput.removeAttribute('required');
+    }
+
+    // Function to set the UI state for logged out users
+    function setLoggedOutState() {
+      loginFields.classList.remove('hidden'); 
+      actionBtn.textContent = 'Log in';
+      usernameInput.setAttribute('required', 'true');
+      passwordInput.setAttribute('required', 'true');
+      passwordInput.value = ''; 
+    }
+
+    // Check if the user is already logged in by checking for a token in sessionStorage
+    if (sessionStorage.getItem('token')) {
+      setLoggedInState();
+      result.textContent = 'You are already logged in.';
+    } else {
+      setLoggedOutState();
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // If the user is logged in, log them out by removing the token from sessionStorage
+      if (sessionStorage.getItem('token')) {
+        sessionStorage.removeItem('token');
+        setLoggedOutState();
+        result.textContent = 'Logged out successfully. Token removed.';
+        return;
+      }
+
+      result.textContent = 'Logging in...';
+
+      const usernameOrEmail = usernameInput.value;
+      const password = passwordInput.value;
+
+      // Send a POST request to the backend login API with the username/email and password
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernameOrEmail, password }),
+        });
+        const data = await res.json();
+
+        // If the response is not OK, display the error message returned by the backend
+        if (!res.ok) {
+          result.textContent = 'Error: ' + (data.error || res.statusText);
+          return;
+        }
+
+        sessionStorage.setItem('token', data.token);
+        setLoggedInState();
+        result.textContent = 'Logged in. Token stored in sessionStorage:\n' + data.token;
+      } catch (err) {
+        result.textContent = 'Request failed: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
