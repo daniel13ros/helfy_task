@@ -95,3 +95,42 @@ services:
     entrypoint: ["/bin/sh", "-c", "/init-connector.sh"]
     networks:
       - app_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      connect:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: mydatabase
+      KAFKA_BROKER: kafka:9092
+    ports:
+      - "5000:5000"
+    networks:
+      - app_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "3000:3000"
+    networks:
+      - app_net
