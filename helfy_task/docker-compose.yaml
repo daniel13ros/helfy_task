@@ -1,58 +1,72 @@
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:${MYSQL_IMAGE_TAG:-8.0}
     container_name: mysql
     restart: unless-stopped
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: mydatabase
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      DEBEZIUM_DB_USER: ${DEBEZIUM_DB_USER}
+      DEBEZIUM_DB_PASSWORD: ${DEBEZIUM_DB_PASSWORD}
     ports:
-      - "3307:3306"
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./mysql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./mysql/02-create-users.sh:/docker-entrypoint-initdb.d/02-create-users.sh:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - app_net
 
   zookeeper:
-    image: zookeeper:3.7
+    image: debezium/zookeeper:${DEBEZIUM_IMAGE_TAG:-2.7.3.Final}
     container_name: zookeeper
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2181' || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 5
+      timeout: 5s
+      retries: 10
       start_period: 15s
     networks:
       - app_net
 
   kafka:
-    image: wurstmeister/kafka:2.13-2.8.0
+    image: debezium/kafka:${DEBEZIUM_IMAGE_TAG:-2.7.3.Final}
     container_name: kafka
     restart: unless-stopped
     depends_on:
       zookeeper:
         condition: service_healthy
     environment:
-      zookeeper.connect: zookeeper:2181
-      kafka.advertised.listeners: PLAINTEXT://kafka:9092
-      kafka.listeners: PLAINTEXT://0.0.0:9092
+      ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9092' || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - app_net
 
   connect:
-    image: debezium/connect:1.9
+    image: debezium/connect:${DEBEZIUM_IMAGE_TAG:-2.7.3.Final}
     container_name: connect
     restart: unless-stopped
     depends_on:
@@ -62,93 +76,93 @@ services:
         condition: service_healthy
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
-      GROUP_ID: 1
-      CONFIG_STORAGE_TOPIC: my_connect_configs
-      OFFSET_STORAGE_TOPIC: my_connect_offsets
-      STATUS_STORAGE_TOPIC: my_connect_statuses
+      GROUP_ID: ${CONNECT_GROUP_ID:-1}
+      CONFIG_STORAGE_TOPIC: ${CONNECT_CONFIG_STORAGE_TOPIC:-connect_configs}
+      OFFSET_STORAGE_TOPIC: ${CONNECT_OFFSET_STORAGE_TOPIC:-connect_offsets}
+      STATUS_STORAGE_TOPIC: ${CONNECT_STATUS_STORAGE_TOPIC:-connect_statuses}
     ports:
-      - "8083:8083"
+      - "${CONNECT_HOST_PORT:-8083}:8083"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8083' || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - app_net
 
   connector-init:
-    image: curlimages/curl:7.85.0
+    image: curlimages/curl:${CURL_IMAGE_TAG:-8.9.1}
     container_name: connector-init
     depends_on:
       connect:
         condition: service_healthy
     environment:
       CONNECT_URL: http://connect:8083
-      connector_name: my-sql-connector
-      debezium_db_user: root
-      debezium_db_password: rootpassword
-      database_server_id: 1
-      topic_prefix: mydb
+      CONNECTOR_NAME: ${CONNECTOR_NAME:-mysql-users-connector}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      DEBEZIUM_DB_USER: ${DEBEZIUM_DB_USER}
+      DEBEZIUM_DB_PASSWORD: ${DEBEZIUM_DB_PASSWORD}
+      DATABASE_SERVER_ID: ${DATABASE_SERVER_ID:-184054}
+      TOPIC_PREFIX: ${TOPIC_PREFIX:-dbserver1}
     volumes:
-      - ./init-connector.sh:/init-connector.sh
-    entrypoint: ["/bin/sh", "-c", "/init-connector.sh"]
+      - ./debezium/register-connector.sh:/register-connector.sh:ro
+      - ./debezium/mysql-connector.json.template:/config/mysql-connector.json.template:ro
+    entrypoint: ["sh", "/register-connector.sh"]
     networks:
       - app_net
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
     container_name: backend
     restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
-      connect:
-        condition: service_healthy
     environment:
+      PORT: 3000
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: rootpassword
-      DB_NAME: mydatabase
-      KAFKA_BROKER: kafka:9092
+      DB_USER: ${APP_DB_USER}
+      DB_PASSWORD: ${APP_DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TOKEN_TTL_MS: ${TOKEN_TTL_MS:-86400000}
     ports:
-      - "5000:5000"
+      - "${BACKEND_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - app_net
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
     container_name: frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-    environment:
-      BACKEND_URL: http://backend:5000
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-8080}:80"
     networks:
       - app_net
 
   cdc-consumer:
-    build:
-      context: ./cdc-consumer
-      dockerfile: Dockerfile
+    build: ./consumer
     container_name: cdc-consumer
     restart: unless-stopped
     depends_on:
-      connect:
-        condition: service_healthy
+      connector-init:
+        condition: service_completed_successfully
     environment:
-      KAFKA_BROKER: kafka:9092
-      kafka_group_id: cdc-consumer-group
-      TOPIC_NAME: mydb.mytable
-      db_name: mydatabase
+      KAFKA_BROKERS: kafka:9092
+      TOPIC_PREFIX: ${TOPIC_PREFIX:-dbserver1}
+      DB_NAME: ${MYSQL_DATABASE}
+      KAFKA_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-cdc-consumer-group}
     networks:
       - app_net
 
