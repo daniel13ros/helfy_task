@@ -50,3 +50,48 @@ services:
       start_period: 15s
     networks:
       - app_net
+
+  connect:
+    image: debezium/connect:1.9
+    container_name: connect
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - app_net
+
+  connector-init:
+    image: curlimages/curl:7.85.0
+    container_name: connector-init
+    depends_on:
+      connect:
+        condition: service_healthy
+    environment:
+      CONNECT_URL: http://connect:8083
+      connector_name: my-sql-connector
+      debezium_db_user: root
+      debezium_db_password: rootpassword
+      database_server_id: 1
+      topic_prefix: mydb
+    volumes:
+      - ./init-connector.sh:/init-connector.sh
+    entrypoint: ["/bin/sh", "-c", "/init-connector.sh"]
+    networks:
+      - app_net
