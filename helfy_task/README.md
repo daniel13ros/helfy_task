@@ -154,7 +154,7 @@ curl http://localhost:8083/connectors/mysql-users-connector/status
 
 ## Project Focus & Trade-offs: 
 
-While I came in with a strong conceptual understanding of Kafka and Debezium, 
+While I came in with a good conceptual understanding of Kafka and Debezium, 
 properly configuring the CDC pipeline and integrating it tightly with MySQL binlogs 
 proved to be the primary technical challenge. I made a conscious engineering decision 
 to invest the bulk of my time ensuring the data streaming infrastructure was robust and 
