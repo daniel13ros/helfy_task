@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 360px; margin: 80px auto; }
+  label { display: block; margin-top: 12px; font-size: 14px; }
+  input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  button { margin-top: 16px; width: 100%; padding: 10px; cursor: pointer; }
+  #result { margin-top: 16px; font-size: 14px; word-break: break-all; white-space: pre-wrap; }
+  .hidden { display: none !important; } 
+</style>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="login-form">
+    <div id="login-fields">
+      <label for="usernameOrEmail">Username or email</label>
+      <input id="usernameOrEmail" name="usernameOrEmail" type="text" autocomplete="username" />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+    </div>
+
+    <button type="submit" id="action-btn">Log in</button>
+  </form>
+  <div id="result"></div>
+
+  
+</body>
+</html>
