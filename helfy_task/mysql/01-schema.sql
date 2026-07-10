@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS user_tokens (
   INDEX idx_user_tokens_token (token)
 ) ENGINE=InnoDB;
 
+-- Seed demo user: username "demo" / password "Password123!"
 INSERT INTO users (username, email, password_hash)
 VALUES ('demo', 'demo@example.com', '$2b$10$BL61brKIvNkGH3B9iQGuZeKKs62R9zvtCzNxUytasYTKBGVlNhh82')
 ON DUPLICATE KEY UPDATE username = username;

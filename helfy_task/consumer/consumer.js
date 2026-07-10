@@ -6,7 +6,7 @@ const DB_NAME = process.env.DB_NAME || 'app_db'; // Get database name from envir
 const GROUP_ID = process.env.KAFKA_GROUP_ID || 'cdc-consumer-group'; // Get Kafka consumer group ID from environment variable or use default
 const TABLES = ['users', 'user_tokens']; // List of tables to consume events from
 
-const kafka = new kafaka.Kafka({
+const kafka = new kafka.Kafka({
     clientId: 'cdc-consumer',
     brokers: BROKERS,
     logLevel: logLevel.NOTHING, // Set log level to nothing to suppress logs
