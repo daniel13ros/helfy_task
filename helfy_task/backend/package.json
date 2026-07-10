@@ -2,9 +2,9 @@
   "name": "auth-backend",
   "version": "1.0.0",
   "description": "Express login API backed by MySQL, instrumented with log4js",
-  "main": "main-app-layout.js",
+  "main": "bootstrap.js",
   "scripts": {
-    "start": "node main-app-layout.js"
+    "start": "node bootstrap.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
