@@ -5,7 +5,7 @@ set -eu # Exit on error and undefined variable
 # Environment variables with defaults
 : "${CONNECT_URL:=http://connect:8083}"
 : "${CONNECTOR_NAME:=mysql-users-connector}"
-TEMPLATE_FILE="/config/mysql-connecto.json.template"
+TEMPLATE_FILE="/config/mysql-connector.json.template"
 RENDERED_FILE="/tmp/mysql-connector.json"
 
 # Render the connector configuration template with environment variables
