@@ -1,12 +1,12 @@
 // Consumer for Debezium CDC events from Kafka
-const { kafaka, logLevel } = require('kafkajs'); // Import kafkajs library for Kafka consumer
+const { Kafka, logLevel } = require('kafkajs'); // Import kafkajs library for Kafka consumer
 const BROKERS = (process.env.KAFKA_BROKERS || 'kafka:9092').split(','); // Get Kafka brokers from environment variable or use default
 const TOPIC_PREFIX = process.env.TOPIC_PREFIX || 'dbserver1'; // Get topic prefix from environment variable or use default
 const DB_NAME = process.env.DB_NAME || 'app_db'; // Get database name from environment variable or use default
 const GROUP_ID = process.env.KAFKA_GROUP_ID || 'cdc-consumer-group'; // Get Kafka consumer group ID from environment variable or use default
 const TABLES = ['users', 'user_tokens']; // List of tables to consume events from
 
-const kafka = new kafka.Kafka({
+const kafka = new Kafka({
     clientId: 'cdc-consumer',
     brokers: BROKERS,
     logLevel: logLevel.NOTHING, // Set log level to nothing to suppress logs
@@ -22,7 +22,7 @@ function describeOp(op) {
         case 'u': return 'UPDATE';
         case 'd': return 'DELETE';
         default:
-            logger.warn(`Received unknown operation type from Debezium: ${op}`);
+            console.warn(`Received unknown operation type from Debezium: ${op}`);
             return 'UNKNOWN';
     }
 }
