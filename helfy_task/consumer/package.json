@@ -1,0 +1,12 @@
+{
+  "name": "cdc-consumer",
+  "version": "1.0.0",
+  "description": "Consumes Debezium CDC change events from Kafka and prints them",
+  "main": "consumer.js",
+  "scripts": {
+    "start": "node consumer.js"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4"
+  }
+}
